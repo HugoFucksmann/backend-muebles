@@ -13,6 +13,7 @@ const pedidosRouter = require('./routes/pedidos.routes');
 const remitosRouter = require('./routes/remitos.routes');
 const alertasRouter = require('./routes/alertas.routes');
 const authRouter = require('./routes/auth.routes');
+const statisticsRouter = require('./routes/statistics.routes');
 
 app.use(express.json());
 
@@ -21,6 +22,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/auth', authRouter);
+app.use('/statistics', statisticsRouter);
 app.use('/clientes', clientesRouter);
 app.use('/muebles', mueblesRouter);
 app.use('/proveedores', proveedoresRouter);

@@ -167,88 +167,25 @@ const deletePresupuesto = async (id) => {
 };
 
 const convertirPresupuesto = async (id) => {
-  // Fetch the presupuesto and its items
-  const { data: presupuesto, error: fetchError } = await supabase
-    .from('presupuestos')
-    .select('*, presupuesto_items(*, muebles(stock, nombre)))') // Include stock and name
-    .eq('id', id)
+  // Llama a la función RPC en la base de datos para manejar la lógica atómica.
+  const { data: newPedidoId, error: rpcError } = await supabase.rpc('convertir_presupuesto_a_pedido', {
+    presupuesto_id_in: id,
+  });
+
+  if (rpcError) {
+    // El error de la función de la base de datos (ej: stock insuficiente) se propaga aquí.
+    throw new Error(rpcError.message);
+  }
+
+  // Si la función RPC fue exitosa, devuelve el pedido recién creado.
+  const { data: newPedido, error: fetchError } = await supabase
+    .from('pedidos')
+    .select('*')
+    .eq('id', newPedidoId)
     .single();
 
   if (fetchError) {
     throw new Error(fetchError.message);
-  }
-  if (!presupuesto) {
-    throw new Error('Presupuesto not found');
-  }
-  if (presupuesto.estado === 'convertido') {
-    throw new Error('Presupuesto already converted');
-  }
-
-  // 1. Check for sufficient stock for all items BEFORE creating the pedido
-  for (const item of presupuesto.presupuesto_items) {
-    if (item.muebles.stock < item.cantidad) {
-      throw new Error(`Not enough stock for ${item.muebles.nombre}. Available: ${item.muebles.stock}, Requested: ${item.cantidad}`);
-    }
-  }
-
-  // 2. Create a new pedido
-  const { data: newPedido, error: pedidoError } = await supabase
-    .from('pedidos')
-    .insert({
-      cliente_id: presupuesto.cliente_id,
-      presupuesto_id: presupuesto.id,
-      fecha_emision: new Date(),
-      fecha_entrega: presupuesto.fecha_entrega,
-      estado: 'orden',
-      pago_estado: 'pendiente',
-    })
-    .select()
-    .single();
-
-  if (pedidoError) {
-    throw new Error(pedidoError.message);
-  }
-
-  // 3. Decrement stock for each item
-  for (const item of presupuesto.presupuesto_items) {
-    const newStock = item.muebles.stock - item.cantidad;
-    const { error: stockError } = await supabase
-      .from('muebles')
-      .update({ stock: newStock })
-      .eq('id', item.mueble_id);
-
-    if (stockError) {
-      // This is a critical issue. Ideally, we should roll back the pedido creation.
-      console.error(`Failed to update stock for mueble ${item.mueble_id}. Rollback should be implemented.`);
-      throw new Error(stockError.message);
-    }
-  }
-
-  // 4. Update presupuesto status
-  const { error: updatePresupuestoError } = await supabase
-    .from('presupuestos')
-    .update({ estado: 'convertido' })
-    .eq('id', id);
-
-  if (updatePresupuestoError) {
-    throw new Error(updatePresupuestoError.message);
-  }
-
-  // 5. Create pedido_items from presupuesto_items
-  const pedidoItemsToCreate = presupuesto.presupuesto_items.map(item => ({
-    pedido_id: newPedido.id,
-    mueble_id: item.mueble_id,
-    cantidad: item.cantidad,
-    descripcion: item.descripcion,
-    precio_unitario: item.precio_unitario,
-  }));
-
-  const { error: pedidoItemsError } = await supabase
-    .from('pedido_items') // Assuming a pedido_items table exists
-    .insert(pedidoItemsToCreate);
-
-  if (pedidoItemsError) {
-    throw new Error(pedidoItemsError.message);
   }
 
   return newPedido;

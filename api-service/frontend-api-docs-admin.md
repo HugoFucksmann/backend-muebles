@@ -104,3 +104,34 @@
 
 -   **`GET /alertas`**: Lista todas las alertas activas.
 -   **`POST /alertas/check`**: Fuerza la verificación de pedidos y la creación de nuevas alertas. Devuelve las alertas que se crearon.
+
+---
+
+## 10. Estadísticas (`/statistics`)
+
+### Obtener Estadísticas del Dashboard
+
+-   **Endpoint:** `GET /statistics/dashboard`
+-   **Descripción:** Obtiene un resumen de estadísticas clave para el panel de administración.
+-   **Autenticación:** Requerida (Admin Role).
+-   **Respuesta Exitosa (200 OK):**
+    ```json
+    {
+      "success": true,
+      "data": {
+        "totalIngresos": 15200.50,
+        "pedidosEsteMes": 25,
+        "clientesNuevosEsteMes": 12,
+        "productosBajoStock": [
+          {
+            "nombre": "Mesa de Pino",
+            "stock": 4
+          },
+          {
+            "nombre": "Silla de Comedor",
+            "stock": 8
+          }
+        ]
+      }
+    }
+    ```
